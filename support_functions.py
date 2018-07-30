@@ -28,8 +28,7 @@ class RedCap:
             'exportCheckboxLabel': 'false',
             'exportSurveyFields': 'false',
             'exportDataAccessGroups': 'false',
-            'returnFormat': 'json',
-            'forms': self.form
+            'returnFormat': 'json'
         }
 
         data_metadata = post(self.redcap_url, data=payload_metadata)
@@ -37,9 +36,28 @@ class RedCap:
         metadata_df['branch_variable'] = metadata_df['branching_logic'].str.extract('((?<=\[).+?(?=\]))', expand=True)
         metadata_df['branch_variable'] =metadata_df['branch_variable'].str.replace('(','___').str.replace(')','')
         metadata_df['branch_value'] = metadata_df['branching_logic'].str.extract('((?<=\').*?(?=\'))', expand=True)
-        metadata_df = metadata_df[metadata_df['form_name']==self.form]
+        #metadata_df = metadata_df[metadata_df['form_name']==self.form]
         self.metadata_df = metadata_df
         return(metadata_df)
+    
+    def get_records_flat(self):
+        payload_records = {
+            'token': self.redcap_token,
+            'content': 'record',
+            'format': 'json',
+            'type': 'flat',
+            'rawOrLabel': 'Label',
+            'rawOrLabelHeaders': 'Label',
+            'exportCheckboxLabel': 'false',
+            'exportSurveyFields': 'true',
+            'exportDataAccessGroups': 'false',
+            'returnFormat': 'json'
+        }
+
+        data_records = post(self.redcap_url, data=payload_records)
+        records_df = pd.DataFrame.from_dict(data_records.json())
+        self.records_df_flat = pd.DataFrame.from_dict(records_df)
+        return(self.records_df_flat)
     
     def get_records(self):
         payload_records = {
@@ -65,29 +83,28 @@ class RedCap:
             rr = rr.rename(columns = rr.iloc[0]).drop(['record','field_name'])
             r_dict = rr.to_dict('records')[0]
             list_records.append(r_dict)
-        self.report_df = pd.DataFrame.from_dict(list_records)
-        return(self.report_df)
+        self.records_df = pd.DataFrame.from_dict(list_records)
+        return(self.records_df)
     
     def get_expected_fields(self):
-        branch_vals = self.metadata_df[['branch_variable','branch_value','field_name']]
-        report_df = self.report_df
         expected_fields = []
-        for indext,rowt in report_df.iterrows():
+        for i,r in self.records_df_flat.iterrows():
             expected_fields_temp = []
-            report_df = rowt   
-            for index,row in branch_vals.iterrows():
-                if str(row['branch_variable']) =='nan': #if the branch variable is nan then we append this field
-                    expected_fields_temp.append(row['field_name']) 
-                if str(row['branch_variable']) !='nan': #if the branch variable is not nan then we need to check if the branch variable matached
-                    if str(row['branch_variable']) in report_df:
-                        if str(report_df[str(row['branch_variable'])][0]) == str(row['branch_value']) :
-                            expected_fields_temp.append(row['field_name'])
+            for indext,rowt in self.metadata_df.iterrows():
+                if (rowt['form_name']) == self.form:
+                    if(str(rowt['branch_value']))=='nan':
+                        expected_fields_temp.append(rowt['field_name'])
+                    if(str(rowt['branch_value']))!='nan':
+                        if(str(rowt['branch_value']) == self.records_df_flat[str(rowt['branch_variable'])].iloc[i]):
+                            #print(str(rowt['field_name']),str(rowt['branch_variable']), str(rowt['branch_value']), self.records_df_flat[str(rowt['branch_variable'])].iloc[i],redcap.records_df_flat[str(rowt['branch_variable'])].iloc[i])  
+                            expected_fields_temp.append(rowt['field_name'])
             expected_fields.append(expected_fields_temp)
         self.expected_fields = expected_fields
         return(expected_fields)
+
     
     def get_completed_fields(self):
-        data_records = self.report_df
+        data_records = self.records_df
         completed_fields_list = []
         for index,row in data_records.iterrows():
             completed = data_records.loc[index][~data_records.loc[index].isna()].index.tolist()
@@ -95,11 +112,11 @@ class RedCap:
         self.completed_fields_list = completed_fields_list
         return(completed_fields_list)
     
-    def get_difference_fields(self):
+    def get_missing_fields(self):
         expected = self.get_expected_fields()
         completed = self.get_completed_fields()
         difference = []
-        for i in range(0,2):
+        for i in range(0,len(completed)):
             difference.append(list(set(expected[i]).difference(completed[i])))
         self.difference = difference
         return(difference)
