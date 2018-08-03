@@ -9,11 +9,12 @@ from requests import post
 
 class RedCap:
     import json
-    def read_redcap_credentials_file(self,credential_file,form):
+    def read_redcap_credentials_file(self,credential_file,form,ignore_fields):
         with open(credential_file, encoding='utf-8') as data_file:
             data = json.loads(data_file.read())
         self.redcap_token = data['redcap_token']
         self.redcap_url = data['redcap_url']
+        self.ignore_fields = ignore_fields
         self.form = form
         
     
@@ -93,11 +94,12 @@ class RedCap:
             for indext,rowt in self.metadata_df.iterrows():
                 if (rowt['form_name']) == self.form:
                     if(str(rowt['branch_value']))=='nan':
-                        expected_fields_temp.append(rowt['field_name'])
+                        if(rowt['field_name'] not in self.ignore_fields):
+                            expected_fields_temp.append(rowt['field_name'])
                     if(str(rowt['branch_value']))!='nan':
                         if(str(rowt['branch_value']) == self.records_df_flat[str(rowt['branch_variable'])].iloc[i]):
-                            #print(str(rowt['field_name']),str(rowt['branch_variable']), str(rowt['branch_value']), self.records_df_flat[str(rowt['branch_variable'])].iloc[i],redcap.records_df_flat[str(rowt['branch_variable'])].iloc[i])  
-                            expected_fields_temp.append(rowt['field_name'])
+                            if(rowt['field_name'] not in self.ignore_fields):
+                                expected_fields_temp.append(rowt['field_name'])
             expected_fields.append(expected_fields_temp)
         self.expected_fields = expected_fields
         return(expected_fields)
@@ -124,7 +126,7 @@ class RedCap:
 
 
 class rapidPro:
-    def read_rapidpro_credentials_file(self,credential_file,rapidpro_flow_id):
+    def read_rapidpro_credentials_file(self,credential_file):
         with open(credential_file, encoding='utf-8') as data_file:
             data = json.loads(data_file.read())
         self.rapidpro_apikey = data['rapidpro_apikey']
