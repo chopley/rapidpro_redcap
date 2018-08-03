@@ -155,7 +155,12 @@ class rapidPro:
     def add_fields_to_contact(self,contact_urn, field_dict):
         client = TembaClient(self.rapidpro_url, self.rapidpro_apikey)
         #get the groups we need to add them too
-        add_fields = client.update_contact(contact_urn, fields = field_dict)
+        field_names = list(field_dict.keys())
+        for field in field_names:
+            check_field = self.client.get_fields(field.replace('-','_')).first()
+            if check_field is None:
+                self.client.create_field(field.replace('_','-'),"text")
+        add_fields = self.client.update_contact(contact_urn, fields = field_dict)
     
     def start_flow(self,contact_urn):
         client = TembaClient(self.rapidpro_url, self.rapidpro_apikey)
