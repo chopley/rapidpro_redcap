@@ -129,8 +129,8 @@ class rapidPro:
             data = json.loads(data_file.read())
         self.rapidpro_apikey = data['rapidpro_apikey']
         self.rapidpro_url = data['rapidpro_url']
+        self.rapidpro_message_sending_flow = data['rapidpro_message_send_flow']
         self.client = TembaClient(self.rapidpro_url, self.rapidpro_apikey)
-        self.rapidpro_message_sending_flow = rapidpro_flow_id
     
     def add_contact_to_groups(self,contact_urn, group_names):
         
